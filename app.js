@@ -19,8 +19,21 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 
+const isAuth = (req, res, next) => {
+    if(req.session.isAuth) {
+        // Proceed to execute the api
+        next();
+    }
+    else {
+        res.send({
+            status: 401, 
+            message: "Invalid Session. Please log in"
+        })
+    }
+}
+
 const store = new MongoDBSession({
-    url: mongoURI,
+    uri: mongoURI,
     collection: 'mySessions'
 })
 
@@ -95,9 +108,8 @@ app.post('/login', async (req, res) => {
 
     // We can log in the user 
     req.session.isAuth = true;
-    req.session.user = { email: user.email, username: user.username };
 
-    return res.redirect('/home');
+    res.redirect('/home');
 
     // return res.send({
     //     status: 200,
@@ -188,14 +200,50 @@ app.post('/register', async (req, res) => {
     }
 })
 
-app.get('/home', (req, res) => {
+app.post('/logout', (req, res) => {
+
+    console.log(req.session);
+    console.log(req.session.id);
+
+    req.session.destroy((err) => {
+        if(err) throw err;
+
+        res.redirect('/');
+    })
+})
+
+app.get('/home', isAuth, (req, res) => {
+
+    res.send(`
+        <html>
+            <head></head>
+            <body>
+                <h1> Welcome to home page </h1>
+
+                <form action='/logout' method='POST'>
+                    <button> Logout </button>
+                </form>
+
+            </body>
+
+        <html>
+    `);
+})
+
+app.get('/dashboard', isAuth, (req, res) => {
+
+    console.log(req.session);
+    console.log(req.session.id);
     
-    if(req.session.isAuth) {
-        res.send("Welcome to home page");
-    }
-    else {
-        res.send('Invalid Session. Please log in.');
-    }
+    res.send("Welcome to dashboard");
+})
+
+app.get('/mypage', isAuth, (req, res) => {
+    res.send('Welcome to my page');
+})
+
+app.get('/openpage', (req, res) => {
+    res.send('This is a open page. Anyone can view it.')
 })
 
 app.listen(PORT, () => {
@@ -213,3 +261,7 @@ app.listen(PORT, () => {
 
 // express-session - Store session in client
 // connect-mongodb-session - Store session in server
+
+// req.session.isAuth will only be true if user is logged in
+
+// middlewares - app.use(), app.get('/apiname', middleware1, middleware2, (req, res) => {})
