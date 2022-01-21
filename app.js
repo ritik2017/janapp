@@ -12,6 +12,7 @@ const { cleanUpAndValidate } = require('./utils/AuthUtils');
 
 // Import Models
 const UserModel = require('./Models/UserModel');
+const TodoModel = require('./Models/TodoModel');
 
 const app = express();
 
@@ -54,12 +55,14 @@ mongoose.connect(mongoURI, {
     console.log('Connected to the database');
 })
 
+// ejs - Template rendering engine
+app.set('view engine', 'ejs');
+
+// API's begin here
+
 app.get('/', (req, res) => {
     res.send('Welcome to our app');
 })
-
-// ejs - Template rendering engine
-app.set('view engine', 'ejs');
 
 // Sends the user login page
 app.get('/login', (req, res) => {
@@ -108,6 +111,7 @@ app.post('/login', async (req, res) => {
 
     // We can log in the user 
     req.session.isAuth = true;
+    req.session.user = { username: user.username, email: user.email };
 
     res.redirect('/home');
 
@@ -212,6 +216,10 @@ app.post('/logout', (req, res) => {
     })
 })
 
+// app.post('/logout_from_all_devices', (req, res) => {
+//     req.session.user.username;
+// })
+
 app.get('/home', isAuth, (req, res) => {
 
     res.send(`
@@ -230,21 +238,44 @@ app.get('/home', isAuth, (req, res) => {
     `);
 })
 
+// ToDo App API's
 app.get('/dashboard', isAuth, (req, res) => {
 
-    console.log(req.session);
-    console.log(req.session.id);
-    
-    res.send("Welcome to dashboard");
+    res.render('dashboard');
 })
 
-app.get('/mypage', isAuth, (req, res) => {
-    res.send('Welcome to my page');
+app.post('/create-item', isAuth, async (req, res) => {
+
+    console.log(req.body);
+
+    let todo = new TodoModel({
+        todo: req.body.todo
+    })
+
+    try {
+        const todoDb = await todo.save();
+        return res.send({
+            status: 200,
+            message: "Todo created successfully",
+            data: todoDb
+        })
+    }
+    catch(err) {
+        return res.send({
+            status: 400,
+            message: "Database error. Please try again",
+            error: err
+        })    
+    }
 })
 
-app.get('/openpage', (req, res) => {
-    res.send('This is a open page. Anyone can view it.')
-})
+// app.get('/mypage', isAuth, (req, res) => {
+//     res.send('Welcome to my page');
+// })
+
+// app.get('/openpage', (req, res) => {
+//     res.send('This is a open page. Anyone can view it.')
+// })
 
 app.listen(PORT, () => {
     console.log(`Listening on port ${PORT}`);
@@ -265,3 +296,29 @@ app.listen(PORT, () => {
 // req.session.isAuth will only be true if user is logged in
 
 // middlewares - app.use(), app.get('/apiname', middleware1, middleware2, (req, res) => {})
+
+// Dev1, Dev2, Dev3, Dev4, Dev5 -> Ses1, Ses2, Ses3, Ses4, Ses5
+
+// Login from a device - 1 session is created - username=ritik
+// Login from device2 - 1 more session is created - username=ritik
+
+// Netflix - 4 screen at one time - 100 devices 
+// 100 Devices = 100 sessions
+// At any moment only 4 sessions at max will response 
+
+// Create, Read, Update, Delete 
+
+// create, update, delete -> More Important
+
+// Allow random users to keep on creating data our database will be out of capacity to store data.
+
+// Anything that performs create, update, delete should be protected using session based auth. 
+
+// Anyone can create an account on todoapp -> Create a todo
+
+// 1. Unauth users - Done (Session based authentication)
+// 2. Authenticated Users
+//    a. One account - Add a limit ( Ex - Youtube comment) - 30 comments(500 character) / min - 500*30=15000 character/min 
+//    b. Multiple Accounts - 
+
+// Keep pressing a button - Too many requests. Please try after some time.
