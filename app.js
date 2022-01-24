@@ -79,6 +79,13 @@ app.post('/login', async (req, res) => {
 
     const { loginId, password } = req.body;
 
+    if(!loginId || !password) {
+        return res.send({
+            status: 404,
+            message: "Missing Parameters"
+        })
+    }
+
     let user;
     if(validator.isEmail(loginId)) {
         // loginId is a email
@@ -113,7 +120,7 @@ app.post('/login', async (req, res) => {
     req.session.isAuth = true;
     req.session.user = { username: user.username, email: user.email };
 
-    res.redirect('/home');
+    res.redirect('/dashboard');
 
     // return res.send({
     //     status: 200,
@@ -239,17 +246,52 @@ app.get('/home', isAuth, (req, res) => {
 })
 
 // ToDo App API's
-app.get('/dashboard', isAuth, (req, res) => {
+app.get('/dashboard', isAuth, async (req, res) => {
 
-    res.render('dashboard');
+    let todos = [];
+
+    try {
+        todos = await TodoModel.find({username: req.session.user.username});
+        // return res.send({
+        //     status: 200,
+        //     message: "Read successful",
+        //     data: todos
+        // })
+        // console.log(todos);
+    }
+    catch(err) {
+        return res.send({
+            status: 400,
+            message: "Database Error. Please try again"
+        })
+    }
+
+    res.render('dashboard', {todos: todos});
 })
 
 app.post('/create-item', isAuth, async (req, res) => {
 
     console.log(req.body);
 
+    const todoText = req.body.todo;
+
+    if(!todoText) {
+        return res.send({
+            status: 404,
+            message: "Missing Parameters"
+        })
+    }
+
+    if(todoText.length > 100) {
+        return res.send({
+            status: 400,
+            message: "Todo too long. Max characters allowed is 100."
+        })
+    }
+
     let todo = new TodoModel({
-        todo: req.body.todo
+        todo: todoText,
+        username: req.session.user.username
     })
 
     try {
@@ -266,6 +308,68 @@ app.post('/create-item', isAuth, async (req, res) => {
             message: "Database error. Please try again",
             error: err
         })    
+    }
+})
+
+// find the item and update the item
+
+app.post('/edit-item', async (req, res) => {
+
+    const id = req.body.id;
+    const newData = req.body.newData; // {todo: "A todo", username: "anyusername"}
+
+    if(!id || !newData) {
+        return res.send({
+            status: 404,
+            message: "Missing Paramters.",
+            error: "Missing id or todo data"
+        })
+    }
+    
+    try {
+        const todoDb = await TodoModel.findOneAndUpdate({_id: id}, {todo: newData.todo});
+        return res.send({
+            status: 200,
+            message: "Update Successful",
+            data: todoDb
+        })
+    }
+    catch(err) {
+        return res.send({
+            status: 400,
+            message: "Database Error. Please try again",
+            error: err
+        })
+    }
+})
+
+app.post('/delete-item', async (req, res) => {
+
+    const id = req.body.id;
+
+    if(!id) {
+        return res.send({
+            status: 404,
+            message: "Missing parameters",
+            error: "Missing id of todo to delete"
+        })
+    }
+    
+    try {
+        const todoDb = await TodoModel.findOneAndDelete({_id: id});
+
+        return res.send({
+            status: 200,
+            message: "Todo Deleted Succesfully",
+            data: todoDb
+        })
+    }
+    catch(err) {
+        return res.send({
+            status: 400,
+            message: "Database error. Please try again.",
+            error: err
+        })
     }
 })
 
@@ -322,3 +426,19 @@ app.listen(PORT, () => {
 //    b. Multiple Accounts - 
 
 // Keep pressing a button - Too many requests. Please try after some time.
+
+// Add a limit - Charcter Limit(Done), Number of API call(To be done)
+
+// app.js -> f1 -> f2
+
+// axios
+
+// Pagination, Rate Limiting
+
+// Normalisation, Indexing, Cloud, Deployment a app, Load Balancing, Scaling of DB, Database migration
+
+// Buy a domain - ourtodoapp.com -> 10.100.109.14 
+
+// Small site - Wiki - 10Mb - index.html
+
+// Serverless - domain -> index.html

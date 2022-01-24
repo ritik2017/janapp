@@ -8,7 +8,7 @@ const todoSchema = new Schema({
     },
     username: {
         type: String,
-        required: false
+        required: true
     }
 })
 
