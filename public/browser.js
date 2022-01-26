@@ -50,3 +50,15 @@ document.addEventListener('click', function(event) {
         }
     }
 })
+
+todosHtml = todos.map((todo) => {
+    return `<li class="list-group-item list-group-item-action d-flex align-items-center justify-content-between">
+    <span class="item-text"> ${todo.todo} </span>
+    <div>
+      <button data-id="${todo._id}" class="edit-me btn btn-secondary btn-sm mr-1">Edit</button>
+      <button data-id="${todo._id}" class="delete-me btn btn-danger btn-sm">Delete</button>
+    </div>
+  </li>`
+}).join('')
+
+document.getElementById('item_list').insertAdjacentHTML('beforeend', todosHtml);

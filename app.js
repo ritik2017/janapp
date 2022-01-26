@@ -276,6 +276,38 @@ app.get('/dashboard', isAuth, async (req, res) => {
     // })
 })
 
+app.post('/pagination_dashboard', async (req, res) => {
+
+    const skip = req.query.skip || 0;
+    const LIMIT = 5;
+    const username = req.body.username; // req.session.user.username
+
+    try {
+        // Read the first 5 todos -> Read -> find({username: "ritik"}) skip limit
+        // Aggregation -> If we want perform multiple actions in a mongodb query, we can use aggregation
+
+        let todos = await TodoModel.aggregate([
+            {$match: {username: username}},
+            {$facet: {
+                data: [ {$skip: parseInt(skip)}, {$limit: LIMIT} ]
+            }}
+        ])
+
+        res.send({
+            status: 200,
+            message: "Read Successful",
+            data: todos
+        })
+
+    }
+    catch(err) {
+        res.send({
+            status: 400,
+            message: "Database error. Please try again"
+        })
+    }
+})
+
 app.post('/create-item', isAuth, async (req, res) => {
 
     console.log(req.body);
@@ -451,3 +483,5 @@ app.listen(PORT, () => {
 // Serverless - domain -> index.html
 
 // MVC - Model, Views, Controllers
+
+// ORM - Mongoose
