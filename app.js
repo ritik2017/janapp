@@ -19,6 +19,7 @@ const app = express();
 // Middleware 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
+app.use(express.static('public'));
 
 const isAuth = (req, res, next) => {
     if(req.session.isAuth) {
@@ -267,6 +268,12 @@ app.get('/dashboard', isAuth, async (req, res) => {
     }
 
     res.render('dashboard', {todos: todos});
+
+    // res.send({
+    //     status: 200,
+    //     message: "Successful",
+    //     data: todos
+    // })
 })
 
 app.post('/create-item', isAuth, async (req, res) => {
@@ -313,16 +320,16 @@ app.post('/create-item', isAuth, async (req, res) => {
 
 // find the item and update the item
 
-app.post('/edit-item', async (req, res) => {
+app.post('/edit-item', isAuth, async (req, res) => {
 
     const id = req.body.id;
-    const newData = req.body.newData; // {todo: "A todo", username: "anyusername"}
+    const newData = req.body.newData; // {todo: "A todo"}
 
-    if(!id || !newData) {
+    if(!id || !newData || !newData.todo) {
         return res.send({
             status: 404,
             message: "Missing Paramters.",
-            error: "Missing id or todo data"
+            error: "Missing todo data"
         })
     }
     
@@ -343,7 +350,7 @@ app.post('/edit-item', async (req, res) => {
     }
 })
 
-app.post('/delete-item', async (req, res) => {
+app.post('/delete-item', isAuth, async (req, res) => {
 
     const id = req.body.id;
 
@@ -442,3 +449,5 @@ app.listen(PORT, () => {
 // Small site - Wiki - 10Mb - index.html
 
 // Serverless - domain -> index.html
+
+// MVC - Model, Views, Controllers
