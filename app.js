@@ -249,25 +249,25 @@ app.get('/home', isAuth, (req, res) => {
 // ToDo App API's
 app.get('/dashboard', isAuth, async (req, res) => {
 
-    let todos = [];
+    // let todos = [];
 
-    try {
-        todos = await TodoModel.find({username: req.session.user.username});
-        // return res.send({
-        //     status: 200,
-        //     message: "Read successful",
-        //     data: todos
-        // })
-        // console.log(todos);
-    }
-    catch(err) {
-        return res.send({
-            status: 400,
-            message: "Database Error. Please try again"
-        })
-    }
+    // try {
+    //     todos = await TodoModel.find({username: req.session.user.username});
+    //     // return res.send({
+    //     //     status: 200,
+    //     //     message: "Read successful",
+    //     //     data: todos
+    //     // })
+    //     // console.log(todos);
+    // }
+    // catch(err) {
+    //     return res.send({
+    //         status: 400,
+    //         message: "Database Error. Please try again"
+    //     })
+    // }
 
-    res.render('dashboard', {todos: todos});
+    res.render('dashboard');
 
     // res.send({
     //     status: 200,
@@ -276,11 +276,11 @@ app.get('/dashboard', isAuth, async (req, res) => {
     // })
 })
 
-app.post('/pagination_dashboard', async (req, res) => {
+app.post('/pagination_dashboard', isAuth, async (req, res) => {
 
     const skip = req.query.skip || 0;
     const LIMIT = 5;
-    const username = req.body.username; // req.session.user.username
+    const username = req.session.user.username;
 
     try {
         // Read the first 5 todos -> Read -> find({username: "ritik"}) skip limit
@@ -288,12 +288,13 @@ app.post('/pagination_dashboard', async (req, res) => {
 
         let todos = await TodoModel.aggregate([
             {$match: {username: username}},
+            {$sort: {todo: 1}},
             {$facet: {
                 data: [ {$skip: parseInt(skip)}, {$limit: LIMIT} ]
             }}
         ])
 
-        res.send({
+        return res.send({
             status: 200,
             message: "Read Successful",
             data: todos
@@ -301,7 +302,7 @@ app.post('/pagination_dashboard', async (req, res) => {
 
     }
     catch(err) {
-        res.send({
+        return res.send({
             status: 400,
             message: "Database error. Please try again"
         })
@@ -313,6 +314,8 @@ app.post('/create-item', isAuth, async (req, res) => {
     console.log(req.body);
 
     const todoText = req.body.todo;
+
+    console.log(todoText);
 
     if(!todoText) {
         return res.send({
@@ -485,3 +488,11 @@ app.listen(PORT, () => {
 // MVC - Model, Views, Controllers
 
 // ORM - Mongoose
+
+// Reverse order => 
+// Return data in reverse order -> Backend
+// sorting -> time -> 
+// 1. add a key in TodoModel -> creation_datetime
+// 2. $sort in descending order using creation_datetime
+
+// Show data in reverse order -> frontend
