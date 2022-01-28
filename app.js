@@ -36,7 +36,7 @@ const isAuth = (req, res, next) => {
 
 const store = new MongoDBSession({
     uri: mongoURI,
-    collection: 'mySessions'
+    collection: 'mysessions' 
 })
 
 app.use(session({
@@ -86,13 +86,14 @@ app.post('/login', async (req, res) => {
             message: "Missing Parameters"
         })
     }
-
+    //email= ritik@gmail.com  username=kumar@outlook.com
     let user;
     if(validator.isEmail(loginId)) {
         // loginId is a email
         user = await UserModel.findOne({email: loginId});
     }
-    else {
+
+    if(!user) {
         // loginId is a username
         user = await UserModel.findOne({username: loginId});
     }
@@ -224,9 +225,33 @@ app.post('/logout', (req, res) => {
     })
 })
 
-// app.post('/logout_from_all_devices', (req, res) => {
-//     req.session.user.username;
-// })
+app.post('/logout_from_all_devices', isAuth, async (req, res) => {
+    const username = req.session.user.username;
+
+    const Schema = mongoose.Schema;
+
+    const sessionSchema = new Schema({_id: String}, {strict: false});
+    const SessionModel = mongoose.model('mysessions', sessionSchema, 'mysessions');
+
+    try {
+        const sessionsDb = await SessionModel.deleteMany({'session.user.username': username});
+
+        console.log(sessionsDb);
+
+        res.send({
+            status: 200,
+            message: "Logged out of all devices"
+        })
+    }
+    catch(err) {
+        res.send({
+            status: 400,
+            message: "Logout Failed",
+            error: err
+        })
+    }
+
+})
 
 app.get('/home', isAuth, (req, res) => {
 
@@ -496,3 +521,27 @@ app.listen(PORT, () => {
 // 2. $sort in descending order using creation_datetime
 
 // Show data in reverse order -> frontend
+
+// System -> APIs (Functionality) 
+// 1. Open APIs(Only Read op is allowed) - Home page, Posts, Videos on youtube 
+// 2. Private APIs(Authenticated) -> Create, Update, Delete (DB write ops)
+// 2a. Admin APIs -> isAdmin -> true
+// 2b. User APIs 
+
+// Authentication -> /register, /login, /logout
+
+// User, Post, Order, Product
+
+// Without session based auth -> Series of api's that can be hit from the site 
+// username, password -> client storage -> send automatically 
+// Token -> Random string -> user -> client and db 
+// Validity -> Scenario 
+
+// Collections in db
+// 1. user -> UserModel
+// 2. todo -> TodoModel
+// 3. mySessions -> Dummy Schema
+
+// Deleted Op 
+// 1. Actually delete the data
+// 2. Add a key(isDeleted) mark it as true
