@@ -13,6 +13,7 @@ const { cleanUpAndValidate } = require('./utils/AuthUtils');
 // Import Models
 const UserModel = require('./Models/UserModel');
 const TodoModel = require('./Models/TodoModel');
+const AccessModel = require('./Models/AccessModel');
 
 const app = express();
 
@@ -32,6 +33,54 @@ const isAuth = (req, res, next) => {
             message: "Invalid Session. Please log in"
         })
     }
+}
+
+// rate limiting
+
+const rateLimiting = async (req, res, next) => {
+
+    const sessionId = req.session.id; // This is unique to any user 
+
+    // console.log(req.session);
+    // console.log(sessionId);
+
+    if(!sessionId) {
+        return res.send({
+            status: 404,
+            message: "Invalid Session. Please log in."
+        })
+    }
+
+    // Rate limiting logic
+
+    // If user has accessed the api recently
+
+    const sessionTimeDb = await AccessModel.findOne({sessionId: sessionId});
+    
+    if(!sessionTimeDb) {
+        // Create - Session is not present
+        const accessTime = new AccessModel({
+            sessionId: req.session.id,
+            time: Date.now()
+        })
+        await accessTime.save();
+        next();
+        return; 
+    }
+    
+    const previousAccessTime = sessionTimeDb.time;
+    const currentTime = Date.now();
+
+    if((currentTime - previousAccessTime) < 1000) {
+        return res.send({
+            status: 401,
+            message: "Too many requests. Please try in some time."
+        })
+    }
+
+    // Update if already present
+    await AccessModel.findOneAndUpdate({sessionId: sessionId}, {time: Date.now()});
+    next();
 }
 
 const store = new MongoDBSession({
@@ -225,6 +274,7 @@ app.post('/logout', (req, res) => {
     })
 })
 
+// Delete all sessions of the current user
 app.post('/logout_from_all_devices', isAuth, async (req, res) => {
     const username = req.session.user.username;
 
@@ -253,7 +303,7 @@ app.post('/logout_from_all_devices', isAuth, async (req, res) => {
 
 })
 
-app.get('/home', isAuth, (req, res) => {
+app.get('/home', isAuth, rateLimiting, (req, res) => {
 
     res.send(`
         <html>
@@ -272,7 +322,7 @@ app.get('/home', isAuth, (req, res) => {
 })
 
 // ToDo App API's
-app.get('/dashboard', isAuth, async (req, res) => {
+app.get('/dashboard', isAuth, rateLimiting, async (req, res) => {
 
     // let todos = [];
 
@@ -301,7 +351,7 @@ app.get('/dashboard', isAuth, async (req, res) => {
     // })
 })
 
-app.post('/pagination_dashboard', isAuth, async (req, res) => {
+app.post('/pagination_dashboard', isAuth, rateLimiting, async (req, res) => {
 
     const skip = req.query.skip || 0;
     const LIMIT = 5;
@@ -334,7 +384,7 @@ app.post('/pagination_dashboard', isAuth, async (req, res) => {
     }
 })
 
-app.post('/create-item', isAuth, async (req, res) => {
+app.post('/create-item', isAuth, rateLimiting, async (req, res) => {
 
     console.log(req.body);
 
@@ -380,7 +430,7 @@ app.post('/create-item', isAuth, async (req, res) => {
 
 // find the item and update the item
 
-app.post('/edit-item', isAuth, async (req, res) => {
+app.post('/edit-item', isAuth, rateLimiting, async (req, res) => {
 
     const id = req.body.id;
     const newData = req.body.newData; // {todo: "A todo"}
@@ -410,7 +460,7 @@ app.post('/edit-item', isAuth, async (req, res) => {
     }
 })
 
-app.post('/delete-item', isAuth, async (req, res) => {
+app.post('/delete-item', isAuth, rateLimiting, async (req, res) => {
 
     const id = req.body.id;
 
