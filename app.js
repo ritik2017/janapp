@@ -1,19 +1,21 @@
 // Import NPM Modules
 const express = require('express');
-const bcrypt = require('bcrypt');
-const mongoose = require('mongoose');
-const validator = require('validator');
+const mongoose = require('mongoose'); // ORM 
 const session = require('express-session');
 const MongoDBSession = require('connect-mongodb-session')(session);
 
 // Import Utils
 const { mongoURI } = require('./private-constants'); 
-const { cleanUpAndValidate } = require('./utils/AuthUtils');
 
 // Import Models
-const UserModel = require('./Models/UserModel');
 const TodoModel = require('./Models/TodoModel');
 const AccessModel = require('./Models/AccessModel');
+
+//Import Routes
+const AuthRouter = require('./Routes/Auth');
+
+//Import Middleware
+const isAuth = require('./middleware');
 
 const app = express();
 
@@ -22,21 +24,10 @@ app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 app.use(express.static('public'));
 
-const isAuth = (req, res, next) => {
-    if(req.session.isAuth) {
-        // Proceed to execute the api
-        next();
-    }
-    else {
-        res.send({
-            status: 401, 
-            message: "Invalid Session. Please log in"
-        })
-    }
-}
+// Auth Related routes
+app.use('/auth', AuthRouter);
 
 // rate limiting
-
 const rateLimiting = async (req, res, next) => {
 
     const sessionId = req.session.id; // This is unique to any user 
@@ -112,195 +103,6 @@ app.set('view engine', 'ejs');
 
 app.get('/', (req, res) => {
     res.send('Welcome to our app');
-})
-
-// Sends the user login page
-app.get('/login', (req, res) => {
-    res.render('login'); 
-})
-
-// Sends the register page
-app.get('/register', (req, res) => {
-    res.render('register');
-})
-
-// Allow the user to login
-app.post('/login', async (req, res) => {
-
-    const { loginId, password } = req.body;
-
-    if(!loginId || !password) {
-        return res.send({
-            status: 404,
-            message: "Missing Parameters"
-        })
-    }
-    //email= ritik@gmail.com  username=kumar@outlook.com
-    let user;
-    if(validator.isEmail(loginId)) {
-        // loginId is a email
-        user = await UserModel.findOne({email: loginId});
-    }
-
-    if(!user) {
-        // loginId is a username
-        user = await UserModel.findOne({username: loginId});
-    }
-    
-    // User not found
-    if(!user) {
-        return res.send({
-            status: 401,
-            message: "User not found",
-            data: req.body
-        })
-    }
-
-    // Match the password
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if(!isMatch) {
-        return res.send({
-            status: 401,
-            message: "Invalid Password",
-            data: req.body
-        })
-    }
-
-    // We can log in the user 
-    req.session.isAuth = true;
-    req.session.user = { username: user.username, email: user.email };
-
-    res.redirect('/dashboard');
-
-    // return res.send({
-    //     status: 200,
-    //     message: "Login Successful",
-    //     data: {
-    //         name: user.name,
-    //         email: user.email,
-    //         username: user.username
-    //     }
-    // })
-})
-
-// Allow the user to register
-app.post('/register', async (req, res) => {
-
-    console.log(req.body);
-    const { name, email, password, username } = req.body;
-
-    try {
-        await cleanUpAndValidate({name, email, username, password});
-    }
-    catch(err) {
-        return res.send({
-            status: 400,
-            message: "Invalid data",
-            error: err
-        })
-    }
-
-    // Check user already exists
-    try {
-        let userEmail = await UserModel.findOne({email})
-        let userUsername = await UserModel.findOne({username});
-
-        // console.log("Useremail", userEmail);
-        // console.log("Username", userUsername);
-
-        if(userEmail) {
-            return res.send({
-                status: 401,
-                message: "Email already exists"
-            })
-        }
-        if(userUsername) {
-            return res.send({
-                status: 401,
-                message: "Username already taken"
-            })
-        }
-    }
-    catch(err) {
-        return res.send({
-            status: 400,
-            message: "Database error. Please try again",
-            error: err
-        })
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 13);
-
-    // Save the data to db
-    const user = new UserModel({
-        name,
-        email,
-        username,
-        password: hashedPassword
-    })
-
-    try {
-        const userDb = await user.save();
-
-        return res.send({
-            status: 200,
-            message: "Registration Successful",
-            data: {
-                name: userDb.name,
-                email: userDb.email,
-                username: userDb.username
-            }
-        })
-    }
-    catch(err) {
-        return res.send({
-            status: 400,
-            message: "Database error",
-            error: err
-        })
-    }
-})
-
-app.post('/logout', (req, res) => {
-
-    console.log(req.session);
-    console.log(req.session.id);
-
-    req.session.destroy((err) => {
-        if(err) throw err;
-
-        res.redirect('/');
-    })
-})
-
-// Delete all sessions of the current user
-app.post('/logout_from_all_devices', isAuth, async (req, res) => {
-    const username = req.session.user.username;
-
-    const Schema = mongoose.Schema;
-
-    const sessionSchema = new Schema({_id: String}, {strict: false});
-    const SessionModel = mongoose.model('mysessions', sessionSchema, 'mysessions');
-
-    try {
-        const sessionsDb = await SessionModel.deleteMany({'session.user.username': username});
-
-        console.log(sessionsDb);
-
-        res.send({
-            status: 200,
-            message: "Logged out of all devices"
-        })
-    }
-    catch(err) {
-        res.send({
-            status: 400,
-            message: "Logout Failed",
-            error: err
-        })
-    }
-
 })
 
 app.get('/home', isAuth, rateLimiting, (req, res) => {
@@ -595,3 +397,21 @@ app.listen(PORT, () => {
 // Deleted Op 
 // 1. Actually delete the data
 // 2. Add a key(isDeleted) mark it as true
+
+// Select p.id, p.name, p.dob, p.cardno, c.expiry from PersonDetails p INNER JOIN 
+// CardDetails c ON p.cardno = c.cardno
+
+// Select p.id, p.name, p.dob, p.cardno, c.expiry from PersonDetails p LEFT JOIN 
+// CardDetails c ON p.cardno = c.cardno
+
+// Select p.id, p.name, p.dob, p.cardno, c.expiry from PersonDetails p RIGHT JOIN 
+// CardDetails c ON p.cardno = c.cardno
+
+// Select p.id, p.name, p.dob, p.cardno, c.expiry from PersonDetails p OUTER JOIN 
+// CardDetails c ON p.cardno = c.cardno
+
+// Select p.id, p.name, p.country, c.state from PersonDetails p INNER JOIN CountryDetails c 
+// ON p.country = c.country
+
+// Default Join -> Inner JOIN
+// Natural Join -> Inner Join, LEFT Join, Right Join
