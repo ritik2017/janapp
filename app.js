@@ -86,7 +86,7 @@ app.use(session({
     store: store
 }))
 
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 mongoose.connect(mongoURI, {
     useNewUrlParser: true,
@@ -300,7 +300,7 @@ app.post('/delete-item', isAuth, rateLimiting, async (req, res) => {
 //     res.send('This is a open page. Anyone can view it.')
 // })
 
-app.listen(PORT, () => {
+app.listen(process.env.PORT || PORT, () => {
     console.log(`Listening on port ${PORT}`);
 })
 
