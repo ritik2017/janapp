@@ -86,7 +86,7 @@ app.use(session({
     store: store
 }))
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 mongoose.connect(mongoURI, {
     useNewUrlParser: true,
