@@ -65,8 +65,10 @@ app.post('/login', async (req, res) => {
     }
 
     // We can log in the user 
-    req.session.isAuth = true;
-    req.session.user = { username: user.username, email: user.email };
+    // req.session.isAuth = true;
+    // req.session.user = { username: user.username, email: user.email };
+
+    console.log(req.session);
 
     res.redirect('/dashboard');
 
