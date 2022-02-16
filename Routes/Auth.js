@@ -68,7 +68,7 @@ app.post('/login', async (req, res) => {
     // req.session.isAuth = true;
     // req.session.user = { username: user.username, email: user.email };
 
-    console.log(req.session);
+    console.log("Session", req.session);
 
     res.redirect('/dashboard');
 
