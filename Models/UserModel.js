@@ -23,6 +23,14 @@ const userSchema = new Schema({
     phone: {
         type: String,
         required: false
+    },
+    isValid: {
+        type: Boolean,
+        required: true
+    },
+    verificationToken: {
+        type: String,
+        required: true
     }
 })
 

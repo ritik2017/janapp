@@ -1,6 +1,6 @@
 const express = require('express');
 const isAuth = require('../middleware');
-const { cleanUpAndValidate } = require('../utils/AuthUtils');
+const { cleanUpAndValidate, generateVerificationToken, sendVerificationEmail } = require('../utils/AuthUtils');
 const UserModel = require('../Models/UserModel');
 const bcrypt = require('bcrypt');
 const validator = require('validator');
@@ -53,6 +53,14 @@ app.post('/login', async (req, res) => {
         })
     }
 
+    if(!user.isValid) {
+        return res.send({
+            status: 401,
+            message: "Account verification pending",
+            data: req.body
+        })
+    }
+
     // Match the password
     const isMatch = await bcrypt.compare(password, user.password);
 
@@ -65,10 +73,8 @@ app.post('/login', async (req, res) => {
     }
 
     // We can log in the user 
-    // req.session.isAuth = true;
-    // req.session.user = { username: user.username, email: user.email };
-
-    console.log("Session", req.session);
+    req.session.isAuth = true;
+    req.session.user = { username: user.username, email: user.email };
 
     res.redirect('/dashboard');
 
@@ -133,20 +139,25 @@ app.post('/register', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 13);
 
+    const verificationToken = generateVerificationToken();
+
     // Save the data to db
     const user = new UserModel({
         name,
         email,
         username,
-        password: hashedPassword
+        password: hashedPassword,
+        isValid: false,
+        verificationToken
     })
 
     try {
         const userDb = await user.save();
+        sendVerificationEmail(email, verificationToken);
 
         return res.send({
             status: 200,
-            message: "Registration Successful",
+            message: "Registration Successful. Please verify your email to login.",
             data: {
                 name: userDb.name,
                 email: userDb.email,
@@ -160,6 +171,20 @@ app.post('/register', async (req, res) => {
             message: "Database error",
             error: err
         })
+    }
+})
+
+app.get('/verifyEmail/:verificationToken', async (req, res) => {
+
+    const { token } = req.params;
+
+    const user = await UserModel.findOneAndUpdate({ verificationToken: token }, {isValid: true});
+
+    if(user) {
+        return res.redirect('/auth/login');
+    }
+    else {
+        return res.send('User not found. Not a valid link.')
     }
 })
 

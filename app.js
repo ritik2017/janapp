@@ -11,21 +11,23 @@ const { mongoURI } = require('./private-constants');
 const TodoModel = require('./Models/TodoModel');
 const AccessModel = require('./Models/AccessModel');
 
-//Import Routes
-const AuthRouter = require('./Routes/Auth');
-
 //Import Middleware
 const isAuth = require('./middleware');
 
 const app = express();
 
+mongoose.connect(mongoURI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+}).then((res) => {
+    // console.log(res);
+    console.log('Connected to the database');
+})
+
 // Middleware 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 app.use(express.static('public'));
-
-// Auth Related routes
-app.use('/auth', AuthRouter);
 
 // rate limiting
 const rateLimiting = async (req, res, next) => {
@@ -86,15 +88,12 @@ app.use(session({
     store: store
 }))
 
-const PORT = 3000;
+//Import Routes
+const AuthRouter = require('./Routes/Auth');
 
-mongoose.connect(mongoURI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then((res) => {
-    // console.log(res);
-    console.log('Connected to the database');
-})
+app.use('/auth', AuthRouter);
+
+const PORT = 3000;
 
 // ejs - Template rendering engine
 app.set('view engine', 'ejs');
@@ -415,3 +414,12 @@ app.listen(process.env.PORT || PORT, () => {
 
 // Default Join -> Inner JOIN
 // Natural Join -> Inner Join, LEFT Join, Right Join
+
+// Create an app in heroku 
+// Install heroku cli
+// heroku login
+// version for heroku
+// add private_constants, delete node modules
+// pick the port from environment variable - process.env.PORT
+// push changes to heroku - git push heroku master
+// watch - heroku logs --tail

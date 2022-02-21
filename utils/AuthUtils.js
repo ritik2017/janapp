@@ -1,4 +1,6 @@
 const validator = require('validator');
+const nodemailer = require('nodemailer');
+const UserModel = require('../Models/UserModel');
 
 const cleanUpAndValidate = ({name, password, email, username}) => {
 
@@ -35,4 +37,48 @@ const cleanUpAndValidate = ({name, password, email, username}) => {
     })
 }
 
-module.exports = { cleanUpAndValidate };
+const generateVerificationToken = () => {
+
+    const len = 8;
+    let token = '';
+
+    for(let i=0;i<len;i++) {
+        token += Math.floor((Math.random() * 10) + 1);
+    }
+    return token;
+}
+
+const sendVerificationEmail = (email, verficationToken) => {
+
+    let mailer = nodemailer.createTransport({
+        service: "Gmail",
+        createTransport: {
+            user: "nohello@testaccio.com",
+            pass: "mail_password"
+        }
+    })
+
+    let sender = 'Todo App';
+    let mailOptions = {
+        from: sender,
+        to: email,
+        subject: "Email Verification Todo App",
+        html: `Press <a href=http://localhost:3000/auth/verifyEmail/${verficationToken}> here </a> to verify your account.`
+    }
+
+    mailer.sendMail(mailOptions, function(error, response) {
+        if(error) console.log(error);
+        else    
+            console.log('Mail sent successfully');
+    })
+}
+
+function resendVerificationEmail(email) {
+
+    const user = UserModel.findOne({email});
+
+    sendVerificationEmail(user.email, user.verficationToken);
+
+}
+
+module.exports = { cleanUpAndValidate, generateVerificationToken, sendVerificationEmail };
